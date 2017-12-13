@@ -14,6 +14,7 @@ class MessageController extends Controller
 	public function filters()
 	{
 		return array(
+			'accessControl', // perform access control for CRUD operations
 			'postOnly + create',
 			'putOnly + update',
 			'deleteOnly + delete'
@@ -52,11 +53,9 @@ class MessageController extends Controller
 	 */
 	public function actionView($id)
 	{
-		header('Content-type: application/json',true,200);
-		echo json_encode([
-			'data' => $this->loadModel($id)->getAttributes()
-		]);		
-	 
+		$this->render('view',array(
+			'model'=>$this->loadModel($id),
+		));
 	}
 
 	/**
@@ -66,8 +65,8 @@ class MessageController extends Controller
 	public function actionCreate()
 	{
 		$model=new Message;
-		$model->attributes = $_POST;
-		$result = $model->save();
+		$model->attributes = $_POST['Message'];
+		$result = $model.save();
 		header('Content-type: application/json',true,200);
 		echo json_encode([
 			'data' => $model->getAttributes()
@@ -81,18 +80,22 @@ class MessageController extends Controller
 	 * @param integer $id the ID of the model to be updated
 	 */
 	public function actionUpdate($id)
-	{	
+	{
 		$model=$this->loadModel($id);
-		
+
 		// Uncomment the following line if AJAX validation is needed
-		// // $this->performAjaxValidation($model);
-		$model->attributes=Yii::app()->getRequest()->getRestParams();
-		$result = $model->save();
-		header('Content-type: apllication/json',true,200);
-		echo json_encode([
-			'data' => $model->getAttributes()]
-		);
-		Yii::app()->end();
+		// $this->performAjaxValidation($model);
+
+		if(isset($_POST['Message']))
+		{
+			$model->attributes=$_POST['Message'];
+			if($model->save())
+				$this->redirect(array('view','id'=>$model->id));
+		}
+
+		$this->render('update',array(
+			'model'=>$model,
+		));
 	}
 
 	/**
@@ -102,13 +105,11 @@ class MessageController extends Controller
 	 */
 	public function actionDelete($id)
 	{
-		$model = $this->loadModel($id);
-		$model->delete();
-		header('Content-type: apllication/json',true,200);
-		echo json_encode([
-			'data' => $model->getAttributes()]
-		);
-		Yii::app()->end();
+		$this->loadModel($id)->delete();
+
+		// if AJAX request (triggered by deletion via admin grid view), we should not redirect the browser
+		if(!isset($_GET['ajax']))
+			$this->redirect(isset($_POST['returnUrl']) ? $_POST['returnUrl'] : array('admin'));
 	}
 
 	/**
@@ -117,14 +118,9 @@ class MessageController extends Controller
 	public function actionIndex()
 	{
 		$dataProvider=new CActiveDataProvider('Message');
-		// print_r($dataProvider->getData());
-		$result = [];
-		foreach ($dataProvider->getData() as $record){
-			$result[] = $record->getAttributes();
-		}
 		header('Content-type: application/json',true,200);
 		echo json_encode([
-			'data' => $result
+			'data' => $dataProvider->getData()
 		]);
 		Yii::app()->end();
 	}
